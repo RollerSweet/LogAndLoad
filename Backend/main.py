@@ -4,8 +4,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from os import getcwd
 import subprocess
-from pathlib import Path
 import aiofiles
+import os
 
 
 # setting classes
@@ -30,16 +30,19 @@ app.add_middleware(
 )
 
 
-@app.post('/upload/csv')
+@app.post('/upload')
 async def upload_file(file: UploadFile = File(None), vm_name: str = Form(None)):
+    uploads_dir = current_path + '\\uploads\\'
     if file is not None:
-        file_path = Path('uploads') / file.filename
+        file_path = uploads_dir + file.filename
         async with aiofiles.open(file_path, 'wb') as out_file:
             content = await file.read()  # async read the file contents
             await out_file.write(content)  # async write the file contents to disk
         # Write here the part to run with csv file!
-        print(file_path)
-        return FileResponse(file_path)
+        # -- POWERSHELL CODE --
+        os.remove(file_path)
+        zip_file = FileResponse(uploads_dir + 'ddd.zip')
+        return zip_file
         # return {'message': 'File uploaded successfully'}
 
     elif vm_name is not None:

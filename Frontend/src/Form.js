@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import './Form.css';
+import React, { useState } from "react";
+import axios from "axios";
+import "./Form.css";
 
 function Form() {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
@@ -13,12 +13,12 @@ function Form() {
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
-    if (selectedFile && selectedFile.type === 'text/csv') {
-      setName('');
+    if (selectedFile && selectedFile.type === "text/csv") {
+      setName("");
       setFile(selectedFile);
     } else {
       setFile(null);
-      alert('Please select a CSV file.');
+      alert("Please select a CSV file.");
     }
   };
 
@@ -27,26 +27,26 @@ function Form() {
     setUploading(true);
     const formData = new FormData();
     if (file) {
-      formData.append('file', file, file.name);
+      console.log(file.name);
+      formData.append("file", file, file.name);
     }
     if (name) {
-      formData.append('vm_name', name);
-
+      formData.append("vm_name", name);
     }
-   
+
     axios
-      .post('http://localhost:80/upload/csv', formData, {
+      .post("http://192.168.1.50:80/upload", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
-        responseType: 'blob', // Set the response type to blob
+        responseType: "blob", // Set the response type to blob
       })
       .then((response) => {
         console.log(response);
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', 'file.csv');
+        link.setAttribute("download", "Logs.zip");
         document.body.appendChild(link);
         link.click();
         setUploading(false);
@@ -77,11 +77,14 @@ function Form() {
           id="file"
           accept=".csv"
           onChange={handleFileChange}
-          disabled={name.trim() !== ''}
+          disabled={name.trim() !== ""}
         />
       </div>
-      <button type="submit" disabled={uploading || (name.trim() === '' && file === null)}>
-        {uploading ? 'Uploading...' : 'Submit'}
+      <button
+        type="submit"
+        disabled={uploading || (name.trim() === "" && file === null)}
+      >
+        {uploading ? "Uploading..." : "Submit"}
       </button>
     </form>
   );
