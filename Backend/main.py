@@ -56,10 +56,13 @@ async def upload_file(file: UploadFile = File(None), vm_name: str = Form(None)):
 
 @app.post("/vmlogs/")
 async def vmlogs(vm: VM):
+    # setting variables for the powershell script
     vm_name = vm.name
     script_path = r"C:\Users\Tamir-PC\Desktop\logandload\Backend\ps-test.ps1"
+    zip_uid = ''
+
     # Setting up the powershell script with predefined parameters
-    command = ["powershell.exe", "-Command", script_path, "-vmname", vm_name]
+    command = ["powershell.exe", "-Command", script_path, "-vmname", vm_name, "-zip_uid", zip_uid]
     # Use subprocess to run the script
     result = subprocess.run(command, capture_output=True, text=True)
     print(result.stdout)

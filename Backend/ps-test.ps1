@@ -5,9 +5,11 @@ Param(
     [Parameter(Mandatory=$false, ValueFromPipeline=$true)]
     [string]$csv_path,
 
-    
     [Parameter(Mandatory=$false, ValueFromPipeline=$true)]
-    [string]$csv_init
+    [string]$csv_init,
+
+    [Parameter(Mandatory=$false, ValueFromPipeline=$true)]
+    [string]$zip_uid
 )
 
 $vCenter_IP = '1.1.1.200'
