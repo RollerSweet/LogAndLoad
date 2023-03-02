@@ -3,7 +3,11 @@ Param(
     [string]$vmname,
 
     [Parameter(Mandatory=$false, ValueFromPipeline=$true)]
-    [string]$csv_path
+    [string]$csv_path,
+
+    
+    [Parameter(Mandatory=$false, ValueFromPipeline=$true)]
+    [string]$csv_init
 )
 
 $vCenter_IP = '1.1.1.200'
@@ -17,6 +21,7 @@ $check_vm_error = 'the VM you specified doesnt exist in the enviroment, vm name:
 $logs_directory_name = '\logs\'
 $work_dir = $PSScriptroot
 $zipfile_name = 'zipped.zip'
+$zip_destination_folder = 'uploads\'
 
 $download_destination = $work_dir + $logs_directory_name # this variable needs to exist prior to running the script
 echo $download_destination
@@ -27,8 +32,13 @@ if (!(Test-Path $download_destination)){
 $ps_drive_name = 'ds1'
 $ps_drive_path = $ps_drive_name + ':\'
 
-if(! ($csv_init)){
+if(!($csv_init)){
     $csv_init = 'Name'
+}
+
+# Creating an object template that will later be used to store the folder names we'd want to zip
+$folders_to_zip_template = @{
+    $folder_name = ''
 }
 
 cd $work_dir
@@ -40,6 +50,7 @@ function test-viserver-connection($vi_address){
 
     }
 }
+
 
 function verify_display_folder ([System.Array]$vm_1, [System.Array]$datastore_1){
     $vm_name_1 = $vm_1.name
@@ -76,33 +87,47 @@ function simple_download_log($vm_i){
     Set-Location $PSScriptRoot
     Get-PSDrive $ps_drive_name | Remove-PsDrive -Force
     $file_name_diff_vms = ''
+    return ($vmfolder)
 }
-
 
 ########################################################################################################
 
 # 1.
-if($vmname){
-    simple_download_log($vmname)
-}
-
-#2.
 if($csv_path){
     $vms = Import-Csv -Path $csv_path
+    # This variable will be defined by the object-template we created earlier
+    # Each row in this object represent a differnt folder we need to zip
+    $folder_count = 0..($vms.count)
+
+    #Defining the objects with our template
+    foreach($i in $folder_count){
+    $folders_to_zip[$i] = New-Object psobject -property $folders_to_zip_template
+    }
+    
     $propery_name = ($vms | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty $csv_init)
+    
     if($propery_name -ne $csv_init){
         throw('invalid csv file, first collumn should start with ' + $csv_init)
     }
 
+    $i = 0
     foreach($vm in $vms){
-        simple_download_log($vm.$csv_init)
+        $folders_to_zip[$i] = $simple_download_log($vm.$csv_init) 
+        $i++
     }
 }
 
-echo ($PSScriptroot + $zipfile_name)
-Compress-Archive -Path $download_destination -DestinationPath ($PSScriptroot + '\' + $zipfile_name)
+# 2.
+if($vmname){
+    $folders_to_zip = New-Object psobject -property $folders_to_zip_template
+    $folders_to_zip = simple_download_log($vmname)
+}
 
 
 # 3.
+$zip_destination = $zip_destination_folder + $zipfile_name
+Compress-Archive $folders_to_zip -DestinationPath $zip_destination
+
+
+# 4.
 Disconnect-VIServer -Server $vCenter_IP -Confirm:$false
-#>
