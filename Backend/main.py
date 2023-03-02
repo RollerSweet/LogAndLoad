@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from os import getcwd
 import subprocess
@@ -37,7 +38,9 @@ async def upload_file(file: UploadFile = File(None), vm_name: str = Form(None)):
             content = await file.read()  # async read the file contents
             await out_file.write(content)  # async write the file contents to disk
         # Write here the part to run with csv file!
-        return {'message': 'File uploaded successfully'}
+        print(file_path)
+        return FileResponse(file_path)
+        # return {'message': 'File uploaded successfully'}
 
     elif vm_name is not None:
         # Write here the part to run with vm name!

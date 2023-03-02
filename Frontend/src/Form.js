@@ -35,13 +35,20 @@ function Form() {
     }
    
     axios
-      .post('http://1:80/upload/csv', formData, {
+      .post('http://localhost:80/upload/csv', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        responseType: 'blob', // Set the response type to blob
       })
       .then((response) => {
-        console.log(response.data);
+        console.log(response);
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'file.csv');
+        document.body.appendChild(link);
+        link.click();
         setUploading(false);
       })
       .catch((error) => {
