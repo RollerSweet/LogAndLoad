@@ -64,7 +64,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-The project was created to fill a specific need in vCenter for downloading VM logs securely and efficiently. Special thanks to the team for the initial concept and development.
+The project was created to fill a specific need in vCenter for downloading VM logs securely and efficiently.
 
 ## Contact
 
