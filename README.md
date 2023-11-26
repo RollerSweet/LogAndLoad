@@ -50,9 +50,9 @@ Wait for the download to complete. The time taken for the download depends on th
 
 ## Built With
 
-Frontend built using React.js for a responsive UI.
-Backend services developed in Python with FastAPI.
-PowerCLI scripts for interacting with vCenter server.
+- Frontend built using React.js for a responsive UI.
+- Backend services developed in Python with FastAPI.
+- PowerCLI scripts for interacting with vCenter server.
 
 ## Contributing
 
@@ -75,7 +75,18 @@ For any inquiries or issues, please open an issue on this repository, or contact
 
 Clone the repository to your local machine to get started:
 
+Create a build from the React
 ```bash
-git clone https://github.com/RollerSweet/VMLogDownloader.git
-cd VMLogDownloader
+git clone https://github.com/RollerSweet/LogAndLoad.git
+cd LogAndLoad/Frontend
+npm install
+npm run build
+```
+
+Run the build on the FastAPI
+copy the build folder and put it inside the StaticFiles folder and call it "build_v1"
+Then run the app.py by using
+```bash
+cd Backend
+uvicorn main:app --ssl-keyfile=".\logandload.key" --ssl-certfile=".\logandload.crt" --host 0.0.0.0 --port 443 --reload
 ```
