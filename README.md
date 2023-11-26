@@ -54,6 +54,23 @@ Frontend built using React.js for a responsive UI.
 Backend services developed in Python with FastAPI.
 PowerCLI scripts for interacting with vCenter server.
 
+## Contributing
+
+Contributions are welcome. If you'd like to contribute to the project, please fork the repository and create a pull request, or open an issue with the tag "enhancement".
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+The project was created to fill a specific need in vCenter for downloading VM logs securely and efficiently. Special thanks to the team for the initial concept and development.
+
+## Contact
+
+For any inquiries or issues, please open an issue on this repository, or contact [RollerSweet](https://github.com/RollerSweet).
+
+
 ### Installation
 
 Clone the repository to your local machine to get started:
