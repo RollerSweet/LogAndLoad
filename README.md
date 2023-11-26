@@ -1,5 +1,7 @@
 # LogAndLoad
 
+**Created By Tamir Madar and Tomer Shahar**
+
 VM Log Downloader is a specialized tool designed to securely and conveniently download virtual machine (VM) log files from a vCenter server. This project addresses the need for a specific role in vCenter for downloading VM logs, by providing a dedicated and secure solution for this task.
 
 ## Key Features
