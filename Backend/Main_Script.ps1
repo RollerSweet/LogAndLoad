@@ -4,9 +4,9 @@ Param(
 
     [Parameter(Mandatory=$false)]
     [string]$csv_path,
-    
+
     [Parameter(Mandatory=$false)]
-    [string]$csv_init,
+    [string]$csv_init = 'Name', # Default value if not provided
 
     [Parameter(Mandatory=$false)]
     [string]$zip_uid,
@@ -20,208 +20,88 @@ Param(
     [Parameter(Mandatory=$true)]
     [string]$passwd
 )
-echo $passwd
+
+# Configure PowerCLI to ignore invalid certificates and connect to vCenter
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false
-Connect-VIServer -Server $vCenter_IP -Protocol https -user $username -Password $passwd
+Connect-VIServer -Server $vCenter_IP -Protocol https -User $username -Password $passwd
 
-# Setting variables
-#$check_vm_error = 'the VM you specified doesnt exist in the enviroment, vm name:'
+# Initialize variables
 $logs_directory_name = '\logs\'
-$work_dir = $PSScriptroot
+$work_dir = $PSScriptRoot
 $zip_destination_folder = 'uploads'
+$download_destination = Join-Path $work_dir "$logs_directory_name$zip_uid"
 
-$folders_list = $zip_destination_folder, $logs_directory_name
-
-$download_destination = "$work_dir$logs_directory_name$zip_uid\"  # this variable needs to exist prior to running the script
-
+# Ensure the download destination directory exists
 if (!(Test-Path $download_destination)){
-     New-Item -ItemType Directory -Path $work_dir -Name $logs_directory_name
+    New-Item -ItemType Directory -Path $download_destination -Force
 }
 
-if (!($csv_init)){
-    $csv_init = 'Name'
-}
-
-$ps_drive_name = 'ds1'
-$ps_drive_path = $ps_drive_name + ':\'
-
-cd $work_dir
-
-########################################################################################################
-
-<#
-function test-viserver-connection($vi_address){
-    if(!($global:DefaultVIServer)){
-        
-    }
-}
-#>
-
-
-#verify_display_folder -
-
-#clear_logs - 
-#  archive_logs - 
-
-# This function takes a single parameter $vm_2 which is the name of a virtual machine. 
-# The function uses the Get-VM cmdlet to retrieve information about the VM, and then extracts the datastore name from the VMX file path. 
-# The extracted datastore name is returned as the output of the function.
-function datastore_verification($vm_2){
-    $vm_3 = Get-VM $vm_2
-    $vm_path = ($vm_3.ExtensionData.Layoutex.file | where-object {$_.name -like '*.vmx'}).name
-    $dataname = ($vm_path.Substring(1)).split("]")[0]
+# Function to verify and return the datastore name of a VM
+function Get-DatastoreName {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$VMName
+    )
     
-    return $dataname
+    $vm = Get-VM $VMName
+    $vmxPath = ($vm.ExtensionData.Config.Files.VmPathName)
+    $datastoreName = ($vmxPath -split '\[|\]')[1]
+    return $datastoreName
 }
 
-# This function takes two parameters, $vm_1 and $datastore_1. 
-# $vm_1 is a virtual machine object, and $datastore_1 is an array of datastore names. The function extracts the folder name from the VMX file path and compares it to the datastore name(s). If the folder name matches exactly one of the datastore names, the function does nothing. 
-# Otherwise, it returns an array with information about the folder name, the datastore name(s), and the VM name.
-function verify_display_folder ([System.Array]$vm_1, [System.Array]$datastore_1){
-    $vm_name_1 = $vm_1.name
-    $vm_path = ($vm_1.ExtensionData.Layoutex.file | where-object {$_.name -like '*.vmx'}).name
+# Function to download logs for a single VM
+function Download-VMLog {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$VMName
+    )
 
-    if($datastore_1.count -gt 1){
-        $compare = ($vm_path.substring((($datastore_1 | Measure-object -Property Name -character).characters) +( $datastore_1.count * $datastore_1.count), ($vm_path.Length - ((($datastore_1 | Measure-object -Property Name -character).characters) + 3)- 4))).split("/")
-    }
-    else{
-         $compare = ($vm_path.substring(($datastore_1.name).Length + 3, ($vm_path.length - (($datastore_1.name).Length + 3) - 4))).split("/")
+    $datastoreName = Get-DatastoreName -VMName $VMName
+    $datastore = Get-Datastore -Name $datastoreName
+    $vmFolder = ($VMName.Trim())
+
+    # Construct paths
+    $localFolderPath = Join-Path $download_destination $vmFolder
+
+    # Ensure local folder for VM logs exists
+    if (!(Test-Path $localFolderPath)){
+        New-Item -ItemType Directory -Path $localFolderPath -Force
     }
 
-    # Contains the Display Name, Folder Name and vmx Name
-    $compare = $compare + $vm_name_1
-    
-    
-    if(($compare.tolower() | select -unique).count -ne 1){
-        return $compare
-    }
-}
+    # Mount the datastore as a PSDrive
+    New-PSDrive -Name "VMDatastore" -PSProvider VimDatastore -Root "\" -Location $datastore
+    Push-Location -Path "VMDatastore:\"
 
-# This function compresses the contents of the $download_destination directory and creates a ZIP archive in the $PSScriptroot\$zip_destination_folder\$zip_uid directory. The contents of the $download_destination directory are compressed using the Compress-Archive cmdlet, 
-# which takes two parameters: -Path specifies the source directory to compress, and -DestinationPath specifies the output path of the ZIP archive.
-
-function clear_logs($folders_list_rm){
-    Get-ChildItem -Path $folders_list_rm | Remove-Item -Recurse -Filter * -Confirm:$false
-}
-
-function archive_logs{
-    $src = $download_destination
-    $dst = ("$PSScriptroot\$zip_destination_folder\$zip_uid").toString()
-    Compress-Archive -Path $src -DestinationPath $dst
-}
-
-
-function simple_download_log($vm_i){
-    $vm_to_log = $vm_i
-    $full_vm_data = Get-VM -Name $vm_to_log
-    $datastore = Get-Datastore -Relatedobject $vm_to_log
-    $file_name_diff_vm = ''
-    
-    if ($datastore.count -gt 1){
-        $valid_datastore = datastore_verification($vm_to_log)
-        $valid_datastore_full = Get-Datastore -Name $valid_datastore
-
-        $file_name_diff_vm = (verify_display_folder $full_vm_data $valid_datastore_full)
-        if ($file_name_diff_vm){
-            if (!(Get-Item -Path ($download_destination + $file_name_diff_vm[0]))){
-                New-Item -ItemType Directory -Path $download_destination -name $file_name_diff_vm[0]
-                New-Item -Itemtype File -Path ($download_destination + $file_name_diff_vm[0]) -Name $vm_to_log   
-            }
-            $vmfolder = $file_name_diff_vm[0]
-            $log_path = $download_destination + $file_name_diff_vm[0]
-    
-            New-PSDrive -Location $valid_datastore_full -Name $ps_drive_name -PSProvider VimDatastore -Root "\"
-            Set-Location $ps_drive_path
-            $vmfolder = (get-childitem | where-object { $_.name -eq $file_name_diff_vm[0] }).name
-            Set-Location $vmfolder
-            $dwnl_file = (Get-childItem | where-object { $_.name -like '*.log' }).name
-            Copy-DatastoreItem -Item $dwnl_file -Destination $log_path
-            Set-Location $PSScriptRoot
-            Get-PSDrive $ps_drive_name | Remove-PSDrive -Force
-            $file_name_diff_vm = ''
-        }
-    
-        else{
-            if (!(Get-Item -Path ($download_destination + $vm_to_log))){
-                New-Item -ItemType Directory -Path $download_destination -name $vm_to_log
-            }
-            $log_path = $download_destination + $vm_to_log
-            New-PSDrive -Location $valid_datastore_full -Name $ps_drive_name -PSProvider VimDatastore -Root "\"
-            Set-Location $ps_drive_path
-            $vmfolder = (get-childitem | where-object { $_.name -eq $vm_to_log }).name
-            Set-Location $vmfolder
-            $dwnl_file = (Get-childItem | where-object { $_.name -like '*.log' }).name
-            Copy-DatastoreItem -Item $dwnl_file -Destination $log_path
-            Set-Location $PSScriptRoot
-            Get-PSDrive $ps_drive_name | Remove-PsDrive -Force
-            $file_name_diff_vm = ''
-        }
+    # Navigate to VM folder and download log files
+    Set-Location -Path $vmFolder
+    $logFiles = Get-ChildItem -Filter "*.log"
+    foreach ($file in $logFiles) {
+        $destinationPath = Join-Path $localFolderPath $file.Name
+        Copy-DatastoreItem -Item $file -Destination $destinationPath
     }
 
-    else{
-        $file_name_diff_vm = (verify_display_folder $full_vm_data $datastore)
-        if ($file_name_diff_vm){
-            if (!(Get-Item -Path ($download_destination + $file_name_diff_vm[0]))){
-                New-Item -ItemType Directory -Path $download_destination -name $file_name_diff_vm[0]
-                New-Item -Itemtype File -Path ($download_destination + $file_name_diff_vm[0]) -Name $vm_to_log   
-            }
-
-            $vmfolder = $file_name_diff_vm[0]
-            $log_path = $download_destination + $file_name_diff_vm[0]
-    
-            New-PSDrive -Location $datastore -Name $ps_drive_name -PSProvider VimDatastore -Root "\"
-            Set-Location $ps_drive_path
-            $vmfolder = (get-childitem | where-object { $_.name -eq $file_name_diff_vm[0] }).name
-            Set-Location $vmfolder
-            $dwnl_file = (Get-childItem | where-object { $_.name -like '*.log' }).name
-            Copy-DatastoreItem -Item $dwnl_file -Destination $log_path
-            Set-Location $PSScriptRoot
-            Get-PSDrive $ps_drive_name | Remove-PSDrive -Force
-            $file_name_diff_vm = ''
-        }
-    
-        else{
-            if (!(Get-Item -Path ($download_destination + $vm_to_log))){
-                New-Item -ItemType Directory -Path $download_destination -name $vm_to_log
-            }
-            $log_path = $download_destination + $vm_to_log
-            New-PSDrive -Location $datastore -Name $ps_drive_name -PSProvider VimDatastore -Root "\"
-            Set-Location $ps_drive_path
-            $vmfolder = (get-childitem | where-object { $_.name -eq $vm_to_log }).name
-            Set-Location $vmfolder
-            $dwnl_file = (Get-childItem | where-object { $_.name -like '*.log' }).name
-            Copy-DatastoreItem -Item $dwnl_file -Destination $log_path
-            Set-Location $PSScriptRoot
-            Get-PSDrive $ps_drive_name | Remove-PsDrive -Force
-            $file_name_diff_vm = ''
-        }
-    }
-}
-########################################################################################################
-
-# 1. checking if a VM name is specified, then downloading it from the vcenter server
-if($vmname){
-    simple_download_log($vmname)
+    # Clean up PSDrive
+    Pop-Location
+    Remove-PSDrive -Name "VMDatastore" -Force
 }
 
-# 2.
-if($csv_path){
-    $vms = Import-Csv -Path $csv_path
-    $propery_name = ($vms | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty $csv_init)
-    if($propery_name -ne $csv_init){
-        throw('invalid csv file, first collumn should start with ' + $csv_init)
-    }
+# Function to compress downloaded logs into a zip file
+function Archive-Logs {
+    Compress-Archive -Path $download_destination -DestinationPath "$PSScriptRoot\$zip_destination_folder\$zip_uid.zip" -Force
+}
 
-    foreach($vm in $vms){
-        simple_download_log($vm.$csv_init)
+# Main Script Execution
+if ($vmname) {
+    Download-VMLog -VMName $vmname
+} elseif ($csv_path) {
+    $vmList = Import-Csv -Path $csv_path
+    foreach ($vm in $vmList) {
+        Download-VMLog -VMName $vm.$csv_init
     }
 }
 
-# 3.
+# Disconnect from vCenter server
 Disconnect-VIServer -Server $vCenter_IP -Confirm:$false
 
-# 4.
-archive_logs
-
-# 5.
-#clear_logs($download_destination)
+# Archive the downloaded logs
+Archive-Logs
