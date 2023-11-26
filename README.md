@@ -81,7 +81,7 @@ git clone https://github.com/RollerSweet/LogAndLoad.git
 cd LogAndLoad/Frontend
 npm install
 npm run build
-
+```
 
 Run the build on the FastAPI
 copy the build folder and put it inside the StaticFiles folder and call it "build_v1"
